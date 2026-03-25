@@ -25,6 +25,7 @@ class AnalysisResponse(BaseModel):
     total_pixels: int
     calibration_used: CalibrationData
     image_dimensions: dict
+    mask: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
