@@ -19,7 +19,7 @@ class AreaCalculator:
         # Процент обработанной площади
         processed_percentage = (processed_pixels / total_pixels) * 100 if total_pixels > 0 else 0
 
-        # Конвертация в квадратные метры
+        # Конвертация в квадратные метры с учетом весов
         total_area_sqm = self.calibration.pixels_to_square_meters(processed_pixels)
 
         logger.info(f"Processed pixels: {processed_pixels}/{total_pixels} "
@@ -32,19 +32,18 @@ class AreaCalculator:
             'total_pixels': total_pixels
         }
 
-        result['mask'] = self._encode_mask_to_base64(mask)
+        # Добавляем отладочную информацию
+        result['debug_info'] = {
+            'scaling_factor': self.calibration.get_scaling_factor(),
+            'total_frame_area': self.calibration._calculate_total_frame_area(),
+            'tilt_angle': self.calibration.tilt_angle_deg,
+            'mount_height': self.calibration.mount_height
+        }
+
+        if return_mask:
+            result['mask'] = self._encode_mask_to_base64(mask)
 
         return result
-
-    def calculate_area_with_confidence(self, mask: np.ndarray,
-                                       confidence_threshold: float = 0.7,
-                                       return_mask: bool = False) -> Dict[str, Any]:
-        if mask.dtype == np.float32 or mask.dtype == np.float64:
-            binary_mask = (mask >= confidence_threshold).astype(np.uint8)
-        else:
-            binary_mask = mask
-
-        return self.calculate_area(binary_mask, return_mask)
 
     def _encode_mask_to_base64(self, mask: np.ndarray) -> str:
         """Кодирует бинарную маску в base64 строку"""
