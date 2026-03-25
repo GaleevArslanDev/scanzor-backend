@@ -32,9 +32,7 @@ class AreaCalculator:
             'total_pixels': total_pixels
         }
 
-        # Добавляем маску в результат, если нужно
-        if return_mask:
-            result['mask'] = self._encode_mask_to_base64(mask)
+        result['mask'] = self._encode_mask_to_base64(mask)
 
         return result
 
