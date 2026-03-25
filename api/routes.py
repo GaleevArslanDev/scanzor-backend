@@ -3,7 +3,7 @@ from typing import Optional
 import json
 import logging
 
-from .schemas import AnalysisResponse, HealthResponse, CalibrationData
+from .schemas import AnalysisResponse, HealthResponse, CalibrationData, TaskType
 from core.image_processor import ImageProcessor
 from utils.validators import ImageValidator, CalibrationValidator
 
