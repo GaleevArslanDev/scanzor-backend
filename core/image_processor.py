@@ -35,7 +35,12 @@ class ImageProcessor:
             calibration = CameraCalibration(calibration_data)
 
             # 3. Определение типа задачи (можно добавить автоматическое определение)
-            task_type = self._detect_task_type(image)
+            if task_type == "auto":
+                actual_task_type = self._detect_task_type(image)
+                logger.info(f"Auto-detected task type: {actual_task_type}")
+            else:
+                actual_task_type = task_type
+                logger.info(f"Using specified task type: {actual_task_type}")
 
             # 4. Сегментация
             mask = self.segmenter.segment(image, task_type)

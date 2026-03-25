@@ -18,7 +18,8 @@ image_processor = ImageProcessor()
 @router.post('/analyze/image', response_model=AnalysisResponse)
 async def analyze_image(
         file: UploadFile = File(...),
-        calibration: str = Form(...)
+        calibration: str = Form(...),
+        task_type: Optional[TaskType] = Form(None, description="Тип задачи: snow, grass или auto (автоопределение)")
 ):
     """
     Анализ изображения с калибровкой
@@ -48,7 +49,8 @@ async def analyze_image(
             raise HTTPException(status_code=400, detail=f"Invalid image: {error_msg}")
 
         # 5. Обработка изображения
-        result = image_processor.process_image(file_bytes, calibration_data)
+        task_type_value = task_type.value if task_type else "auto"
+        result = image_processor.process_image(file_bytes, calibration_data, task_type_value)
 
         if result['status'] == 'error':
             raise HTTPException(status_code=500, detail=result.get('error', 'Processing failed'))

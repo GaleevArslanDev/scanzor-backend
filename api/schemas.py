@@ -3,6 +3,12 @@ from typing import Optional
 from enum import Enum
 
 
+class TaskType(str, Enum):
+    """Типы задач для сегментации"""
+    SNOW = "snow"
+    GRASS = "grass"
+    AUTO = "auto"
+
 class CalibrationData(BaseModel):
     focalLength: float = Field(..., gt=0, description="Фокусное расстояние в мм")
     mountHeight: float = Field(..., gt=0, description="Высота подвеса в метрах")
