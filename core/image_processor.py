@@ -16,7 +16,8 @@ class ImageProcessor:
     def __init__(self):
         self.segmenter = AreaSegmentation(method="color_threshold")
 
-    def process_image(self, image_bytes: bytes, calibration_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process_image(self, image_bytes: bytes, calibration_data: Dict[str, Any],
+                     task_type: str = "auto") -> Dict[str, Any]:
         """
         Полная обработка изображения
 
