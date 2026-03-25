@@ -47,9 +47,18 @@ class AreaSegmentation:
         if task_type == "snow":
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-            # Адаптивный порог для выделения границ между светлым и темным
-            mask = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                         cv2.THRESH_BINARY, 11, 2)
+            _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # Определяем, какой цвет (светлый или темный) является "снегом"
+            # Снег должен быть светлым (высокое значение яркости)
+            # Находим среднюю яркость светлых и темных областей
+            mean_white = np.mean(gray[mask == 255]) if np.any(mask == 255) else 0
+            mean_black = np.mean(gray[mask == 0]) if np.any(mask == 0) else 0
+
+            # Если средняя яркость темных пикселей выше, чем светлых - значит Otsu инвертировал
+            if mean_black > mean_white:
+                # Инвертируем маску, чтобы снег был белым
+                mask = cv2.bitwise_not(mask)
 
             kernel = np.ones((5, 5), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
