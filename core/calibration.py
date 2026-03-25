@@ -180,3 +180,7 @@ class CameraCalibration:
         total_area = self._calculate_total_frame_area()
         total_pixels = self.image_width * self.image_height
         return total_area / total_pixels if total_pixels > 0 else 0
+
+class CalibrationError(Exception):
+    # десь можно добавить ошиьку
+    pass
