@@ -46,9 +46,11 @@ class AreaSegmentation:
 
         if task_type == "snow":
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            _, mask = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
 
-            # Морфологическая очистка
+            # Адаптивный порог для выделения границ между светлым и темным
+            mask = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                         cv2.THRESH_BINARY, 11, 2)
+
             kernel = np.ones((5, 5), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
