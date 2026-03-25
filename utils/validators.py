@@ -1,37 +1,54 @@
 from typing import Optional, Tuple
-import magic
 import io
 import logging
+import imghdr
 
 logger = logging.getLogger(__name__)
 
 
 class ImageValidator:
+    ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
     ALLOWED_MIME_TYPES = {
         'image/jpeg',
         'image/jpg',
         'image/png'
     }
 
-    MAX_FILE_SIZE_MB = 10
+    MAX_FILE_SIZE_MB = 10  # Максимальный размер файла в МБ
 
     @classmethod
     def validate_image(cls, file_bytes: bytes, filename: str) -> Tuple[bool, Optional[str]]:
+        """
+        Валидация изображения
+
+        Args:
+            file_bytes: Байты файла
+            filename: Имя файла
+
+        Returns:
+            (is_valid, error_message)
+        """
         # Проверка размера
         file_size_mb = len(file_bytes) / (1024 * 1024)
         if file_size_mb > cls.MAX_FILE_SIZE_MB:
             return False, f"File size exceeds {cls.MAX_FILE_SIZE_MB} MB"
 
-        # Проверка MIME типа
+        # Проверка расширения файла
+        import os
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in cls.ALLOWED_EXTENSIONS:
+            return False, f"File extension {ext} not allowed. Allowed: {cls.ALLOWED_EXTENSIONS}"
+
+        # Проверка содержимого файла (магические числа)
         try:
-            mime = magic.from_buffer(file_bytes[:1024], mime=True)
-            if mime not in cls.ALLOWED_MIME_TYPES:
-                return False, f"File type {mime} not allowed. Allowed: {cls.ALLOWED_MIME_TYPES}"
+            # Используем imghdr для определения типа изображения
+            image_type = imghdr.what(None, h=file_bytes)
+            if image_type not in ['jpeg', 'png']:
+                return False, f"File content type {image_type} not allowed. Allowed: jpeg, png"
         except Exception as e:
-            logger.warning(f"Could not detect MIME type: {e}")
-            # Fallback: проверка по расширению
-            if not any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
-                return False, "Invalid file extension"
+            logger.warning(f"Could not detect image type: {e}")
+            # Если не можем определить, пропускаем проверку
+            pass
 
         return True, None
 
