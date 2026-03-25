@@ -12,7 +12,7 @@ class AreaCalculator:
     def __init__(self, calibration: CameraCalibration):
         self.calibration = calibration
 
-    def calculate_area(self, mask: np.ndarray, return_mask: bool = False) -> Dict[str, Any]:
+    def calculate_area(self, mask: np.ndarray, return_mask: bool = True) -> Dict[str, Any]:
         total_pixels = mask.size
         processed_pixels = int(np.sum(mask))
 
