@@ -62,7 +62,8 @@ async def analyze_image(
             total_pixels=result['total_pixels'],
             calibration_used=CalibrationData(**result['calibration_used']),
             image_dimensions=result['image_dimensions'],
-            mask=result.get('mask')
+            mask=result.get('mask'),
+            task_type=result.get('task_type')
         )
 
     except HTTPException:

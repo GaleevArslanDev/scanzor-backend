@@ -26,6 +26,7 @@ class AnalysisResponse(BaseModel):
     calibration_used: CalibrationData
     image_dimensions: dict
     mask: Optional[str] = None
+    task_type: str
 
 
 class HealthResponse(BaseModel):

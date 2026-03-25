@@ -52,7 +52,8 @@ class ImageProcessor:
                 'image_dimensions': {
                     'width': image.shape[1],
                     'height': image.shape[0]
-                }
+                },
+                'task_type': task_type
             }
 
             # Для отладки: сохранить маску (опционально)
