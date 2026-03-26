@@ -17,13 +17,14 @@ class ImageProcessor:
         self.segmenter = AreaSegmentation(method="color_threshold")
 
     def process_image(self, image_bytes: bytes, calibration_data: Dict[str, Any],
-                     task_type: str = "auto") -> Dict[str, Any]:
+                      task_type: str = "auto") -> Dict[str, Any]:
         """
         Полная обработка изображения
 
         Args:
             image_bytes: Байты изображения
             calibration_data: Данные калибровки
+            task_type: Тип задачи ('snow', 'grass', 'auto')
 
         Returns:
             Результаты анализа
@@ -31,11 +32,14 @@ class ImageProcessor:
         try:
             # 1. Загрузка изображения
             image = self._load_image(image_bytes)
+            image_height, image_width = image.shape[:2]
 
-            # 2. Калибровка
-            calibration = CameraCalibration(calibration_data)
+            logger.info(f"Loaded image: {image_width}x{image_height}")
 
-            # 3. Определение типа задачи (можно добавить автоматическое определение)
+            # 2. Калибровка с реальными размерами изображения
+            calibration = CameraCalibration(calibration_data, (image_height, image_width))
+
+            # 3. Определение типа задачи
             if task_type == "auto":
                 actual_task_type = self._detect_task_type(image)
                 logger.info(f"Auto-detected task type: {actual_task_type}")
@@ -44,7 +48,14 @@ class ImageProcessor:
                 logger.info(f"Using specified task type: {actual_task_type}")
 
             # 4. Сегментация
-            mask = self.segmenter.segment(image, task_type)
+            mask = self.segmenter.segment(image, actual_task_type)
+
+            # Убеждаемся, что маска имеет правильный размер
+            if mask.shape != (image_height, image_width):
+                mask = cv2.resize(mask.astype(np.float32),
+                                  (image_width, image_height),
+                                  interpolation=cv2.INTER_NEAREST)
+                mask = mask > 0.5
 
             # 5. Расчет площади
             calculator = AreaCalculator(calibration)
@@ -56,14 +67,11 @@ class ImageProcessor:
                 **area_results,
                 'calibration_used': calibration_data,
                 'image_dimensions': {
-                    'width': image.shape[1],
-                    'height': image.shape[0]
+                    'width': image_width,
+                    'height': image_height
                 },
-                'task_type': task_type
+                'task_type': actual_task_type
             }
-
-            # Для отладки: сохранить маску (опционально)
-            # self._save_mask_for_debug(mask)
 
             return result
 
@@ -95,14 +103,9 @@ class ImageProcessor:
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         avg_saturation = np.mean(hsv[:, :, 1])
-
         avg_value = np.mean(hsv[:, :, 2])
 
         if avg_saturation < 50 and avg_value > 150:
             return 'snow'
         else:
             return 'grass'
-
-    def _save_mask_for_debug(self, mask: np.ndarray, filename: str = "debug_mask.png"):
-        mask_visual = (mask * 255).astype(np.uint8)
-        cv2.imwrite(filename, mask_visual)

@@ -20,7 +20,9 @@ class AreaCalculator:
         Вес пикселя = реальная площадь на земле, которую он представляет.
         """
         height = self.calibration.image_height
-        width = self.calibration.image_width
+        width = self.calibration.real_image_width
+
+        logger.info(f"Creating weight map for {width}x{height} image")
 
         # Создаем карту весов
         weight_map = np.zeros((height, width), dtype=np.float64)
@@ -31,7 +33,6 @@ class AreaCalculator:
             v = y / height
 
             # Угол от горизонта до этой строки
-            # Используем линейную интерполяцию угла по вертикали
             angle_rad = self.calibration._get_angle_for_row(v)
 
             # Расстояние до этой строки на земле
@@ -67,13 +68,19 @@ class AreaCalculator:
 
         logger.info(f"Total calculated area via weight map: {total_calculated_area:.2f} sqm")
         logger.info(f"Actual frame area: {actual_frame_area:.2f} sqm")
-        logger.info(f"Ratio: {total_calculated_area / actual_frame_area:.4f}")
 
         # Небольшая корректировка для компенсации погрешностей
-        if abs(total_calculated_area - actual_frame_area) > 0.1:
+        if actual_frame_area > 0 and abs(total_calculated_area - actual_frame_area) > 0.01:
             scale_factor = actual_frame_area / total_calculated_area
             weight_map *= scale_factor
             logger.info(f"Applied scale correction: {scale_factor:.4f}")
+            logger.info(f"Corrected total area: {np.sum(weight_map):.2f} sqm")
+
+        # Выводим статистику по весам
+        logger.info(f"Weight map stats - min: {np.min(weight_map):.6f}, "
+                    f"max: {np.max(weight_map):.6f}, "
+                    f"mean: {np.mean(weight_map):.6f}, "
+                    f"ratio: {np.max(weight_map) / np.min(weight_map):.2f}")
 
         return weight_map
 
@@ -81,6 +88,16 @@ class AreaCalculator:
         """
         Расчет площади с использованием карты весов
         """
+        # Проверяем соответствие размеров
+        if mask.shape != self.weight_map.shape:
+            logger.error(f"Mask shape {mask.shape} does not match weight map shape {self.weight_map.shape}")
+            # Пытаемся изменить размер маски
+            if len(mask.shape) == 2 and len(self.weight_map.shape) == 2:
+                mask = cv2.resize(mask.astype(np.float32),
+                                  (self.weight_map.shape[1], self.weight_map.shape[0]),
+                                  interpolation=cv2.INTER_NEAREST)
+                mask = mask > 0.5
+
         total_pixels = mask.size
         processed_pixels = int(np.sum(mask))
 
@@ -99,9 +116,8 @@ class AreaCalculator:
                     f"({processed_percentage:.2f}%)")
         logger.info(f"Processed weighted area: {total_area_sqm:.2f} sqm")
         logger.info(f"Total frame area: {total_frame_area:.2f} sqm")
-        logger.info(f"Total weighted pixels sum: {total_weighted_pixels:.2f}")
 
-        # Статистика по весам для отладки
+        # Статистика по весам в маске для отладки
         weights_in_mask = self.weight_map[mask > 0]
         if len(weights_in_mask) > 0:
             logger.info(f"Weight stats in mask - min: {np.min(weights_in_mask):.6f}, "
@@ -118,7 +134,7 @@ class AreaCalculator:
         # Добавляем отладочную информацию
         result['debug_info'] = {
             'scaling_factor': self.calibration.get_scaling_factor(),
-            'total_frame_area': total_frame_area,
+            'total_frame_area': round(total_frame_area, 2),
             'total_weighted_pixels': round(total_weighted_pixels, 2),
             'weighted_area_total': round(np.sum(self.weight_map), 2),
             'tilt_angle': self.calibration.tilt_angle_deg,
@@ -127,7 +143,9 @@ class AreaCalculator:
             'horizontal_fov_deg': round(np.degrees(self.calibration.horizontal_fov), 2),
             'min_pixel_weight': round(np.min(self.weight_map), 6),
             'max_pixel_weight': round(np.max(self.weight_map), 6),
-            'weight_ratio': round(np.max(self.weight_map) / np.min(self.weight_map), 2)
+            'weight_ratio': round(np.max(self.weight_map) / np.min(self.weight_map), 2),
+            'image_height': self.calibration.image_height,
+            'image_width': self.calibration.real_image_width
         }
 
         if return_mask:

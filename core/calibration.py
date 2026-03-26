@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import math
 import logging
 
@@ -7,21 +7,35 @@ logger = logging.getLogger(__name__)
 
 
 class CameraCalibration:
-    def __init__(self, calibration_data: Dict[str, Any]):
+    def __init__(self, calibration_data: Dict[str, Any], image_shape: Tuple[int, int] = None):
+        """
+        Args:
+            calibration_data: Данные калибровки
+            image_shape: (height, width) реальные размеры изображения
+        """
         self.focal_length = calibration_data['focalLength']  # мм
         self.mount_height = calibration_data['mountHeight']  # м
         self.tilt_angle_deg = calibration_data['tiltAngle']  # градусы
         self.tilt_angle_rad = math.radians(self.tilt_angle_deg)  # радианы
         self.sensor_width = calibration_data['sensorWidth']  # мм
-        self.image_width = calibration_data['imageWidth']  # пикс
+        self.image_width = calibration_data['imageWidth']  # пикс (ширина из калибровки)
 
-        # Дополнительные параметры
-        # Предполагаем соотношение сторон 4:3 для более точного расчета
-        self.aspect_ratio = 4 / 3
-        self.sensor_height = self.sensor_width / self.aspect_ratio
-        self.image_height = int(self.image_width / self.aspect_ratio)
+        # Используем реальные размеры изображения, если они переданы
+        if image_shape is not None:
+            self.image_height = image_shape[0]
+            self.real_image_width = image_shape[1]
+            logger.info(f"Using actual image dimensions: {self.real_image_width}x{self.image_height}")
+        else:
+            # Fallback: вычисляем высоту на основе соотношения сторон 4:3
+            self.aspect_ratio = 4 / 3
+            self.image_height = int(self.image_width / self.aspect_ratio)
+            self.real_image_width = self.image_width
+            logger.warning(f"Using calculated image dimensions: {self.real_image_width}x{self.image_height}")
 
-        logger.info(f"Image dimensions: {self.image_width}x{self.image_height}")
+        # Расчет сенсора на основе реального соотношения сторон изображения
+        self.sensor_height = self.sensor_width * (self.image_height / self.real_image_width)
+
+        logger.info(f"Image dimensions: {self.real_image_width}x{self.image_height}")
         logger.info(f"Sensor dimensions: {self.sensor_width:.2f}x{self.sensor_height:.2f} mm")
 
         # Предварительный расчет
@@ -67,27 +81,14 @@ class CameraCalibration:
 
         return angle
 
-    def pixels_to_square_meters(self, pixel_count: int) -> float:
-        """
-        Упрощенная конвертация - используется только для совместимости
-        Лучше использовать AreaCalculator с весовой картой
-        """
-        total_frame_area = self._calculate_total_frame_area()
-        total_pixels = self.image_width * self.image_height
-
-        if total_pixels > 0:
-            return (pixel_count / total_pixels) * total_frame_area
-        return 0.0
-
     def _calculate_total_frame_area(self) -> float:
         """Вычисление общей площади кадра в квадратных метрах"""
         try:
             # Интегрируем по всей площади изображения
             total_area = 0.0
 
-            # Разбиваем изображение на горизонтальные полосы
-            num_samples = 100  # Для ускорения используем дискретизацию
-            height = self.image_height
+            # Используем точное количество строк для интегрирования
+            num_samples = self.image_height
 
             for y in range(num_samples):
                 v = y / num_samples
@@ -142,7 +143,7 @@ class CameraCalibration:
     def get_scaling_factor(self) -> float:
         """Возвращает средний коэффициент масштабирования"""
         total_area = self._calculate_total_frame_area()
-        total_pixels = self.image_width * self.image_height
+        total_pixels = self.image_height * self.real_image_width
         return total_area / total_pixels if total_pixels > 0 else 0
 
 
